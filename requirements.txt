@@ -6,6 +6,5 @@ streamlit
 spacy
 sqlalchemy
 psycopg2-binary
-sqlite3
 requests
 python-dotenv 
