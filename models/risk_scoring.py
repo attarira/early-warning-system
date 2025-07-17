@@ -1,5 +1,6 @@
 import re
 from transformers import pipeline
+import spacy
 
 RISK_KEYWORDS = {
     'Liquidity Risk': [r'liquidity', r'withdrawal', r'insolvency', r'cash crunch'],
@@ -35,4 +36,17 @@ def detect_risk_type(text):
 
 def extract_entity(text):
     match = re.search(r'([A-Z][a-zA-Z0-9]+)', text)
-    return match.group(1) if match else 'Unknown' 
+    return match.group(1) if match else 'Unknown'
+
+_nlp = None
+def get_nlp():
+    global _nlp
+    if _nlp is None:
+        _nlp = spacy.load("en_core_web_sm")
+    return _nlp
+
+def extract_entities(text):
+    nlp = get_nlp()
+    doc = nlp(text)
+    orgs = [ent.text for ent in doc.ents if ent.label_ == "ORG"]
+    return orgs if orgs else ["Unknown"] 
