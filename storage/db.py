@@ -1,9 +1,12 @@
+import os
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import datetime
 
-DB_PATH = 'ews.db'
+data_dir = 'data'
+os.makedirs(data_dir, exist_ok=True)
+DB_PATH = os.path.join(data_dir, 'ews.db')
 Base = declarative_base()
 
 class NewsEvent(Base):

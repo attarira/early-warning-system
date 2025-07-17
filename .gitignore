@@ -1,1 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
 venv/
+.venv/
+
+# macOS
+.DS_Store
+
+# Environment variables
+.env
+
+# SQLite DB and logs
+data/
+*.db
+*.sqlite3
+*.log
+
+# Ignore ews.db specifically if not in data/
+ews.db
+
+# (Optional) Ignore init files if you don't want to track them
+# __init__.py
