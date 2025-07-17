@@ -14,9 +14,9 @@ sleep 10
 echo "Activating virtual environment..."
 source venv/bin/activate || source .venv/bin/activate
 
-# Run the news producer
-echo "Running news producer to send sample news to Kafka..."
-python -m ingestion.news_producer
+# Run the newsapi producer
+echo "Running newsapi producer to send real news to Kafka..."
+python -m ingestion.newsapi_producer
 
 # Run the news consumer in the background
 echo "Starting news consumer (risk scoring, alerting, storage)..."
