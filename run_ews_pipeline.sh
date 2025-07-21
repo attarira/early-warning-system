@@ -1,5 +1,17 @@
 #!/bin/bash
 set -e
+set -m # Enable Job Control
+
+# Function to clean up background processes
+cleanup() {
+    echo "Cleaning up background processes..."
+    if [ -n "$NEWS_PRODUCER_PID" ]; then kill "$NEWS_PRODUCER_PID"; fi
+    if [ -n "$REDDIT_PRODUCER_PID" ]; then kill "$REDDIT_PRODUCER_PID"; fi
+    if [ -n "$CONSUMER_PID" ]; then kill "$CONSUMER_PID"; fi
+}
+
+# Trap EXIT signal to run cleanup function
+trap cleanup EXIT
 
 # Start Kafka and Zookeeper
 if ! docker info > /dev/null 2>&1; then
@@ -14,9 +26,16 @@ sleep 10
 echo "Activating virtual environment..."
 source venv/bin/activate || source .venv/bin/activate
 
-# Run the newsapi producer
-echo "Running newsapi producer to send real news to Kafka..."
-python -m ingestion.newsapi_producer
+# Run producers in the background
+echo "Running newsapi producer in the background..."
+PYTHONPATH=. nohup python -m ingestion.newsapi_producer > news_producer.log 2>&1 &
+NEWS_PRODUCER_PID=$!
+echo "News producer running in background (PID $NEWS_PRODUCER_PID, logs in news_producer.log)"
+
+echo "Running reddit producer in the background..."
+PYTHONPATH=. nohup python -m ingestion.reddit_producer > reddit_producer.log 2>&1 &
+REDDIT_PRODUCER_PID=$!
+echo "Reddit producer running in background (PID $REDDIT_PRODUCER_PID, logs in reddit_producer.log)"
 
 # Run the news consumer in the background
 echo "Starting news consumer (risk scoring, alerting, storage)..."
@@ -28,5 +47,4 @@ echo "News consumer running in background (PID $CONSUMER_PID, logs in consumer.l
 echo "Launching Streamlit dashboard..."
 PYTHONPATH=. streamlit run dashboard/app.py
 
-# When done, kill the consumer
-kill $CONSUMER_PID 
+# When done, the trap will kill the background processes 
