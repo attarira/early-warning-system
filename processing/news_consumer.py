@@ -26,33 +26,49 @@ def main():
     init_db()
     consumer = KafkaConsumer(
         NEWS_TOPIC,
+        'reddit_posts',
         bootstrap_servers=KAFKA_BROKER,
         auto_offset_reset='earliest',
         enable_auto_commit=True,
         group_id='ews-news-consumer',
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
-    print(f"Listening for messages on topic '{NEWS_TOPIC}'...")
+    print(f"Listening for messages on topics: '{NEWS_TOPIC}', 'reddit_posts'...")
 
     alert_engine = AlertEngine()
 
     for message in consumer:
-        news = message.value
-        text = news['headline']
+        data = message.value
+        if message.topic == NEWS_TOPIC:
+            text = data['headline']
+            source = data.get('source', 'Unknown')
+            timestamp = data.get('timestamp', str(datetime.datetime.utcnow()))
+        elif message.topic == 'reddit_posts':
+            text = data['title']
+            source = 'Reddit'
+            timestamp = str(datetime.datetime.fromtimestamp(data.get('created_utc', time.time())))
+        else:
+            continue
+
         entities = extract_entities(text)
         sentiment = get_sentiment(text)
         risk_types = detect_risk_type(text)
 
         for entity in entities:
             alerts = alert_engine.process(entity, sentiment['label'])
-            alert_flag = bool(alerts)
-            alert_message = '\n'.join(alerts) if alerts else None
+            # New logic: trigger alert for any negative sentiment
+            if sentiment['label'].lower() == 'negative':
+                alert_flag = True
+                alert_message = f"[ALERT] Negative sentiment detected for {entity}: {text}"
+            else:
+                alert_flag = bool(alerts)
+                alert_message = '\n'.join(alerts) if alerts else None
 
             # Store in DB
             insert_news_event(
                 headline=text,
-                source=news['source'],
-                timestamp=news['timestamp'],
+                source=source,
+                timestamp=timestamp,
                 entity=entity,
                 sentiment=sentiment['label'],
                 sentiment_score=sentiment['score'],
@@ -61,10 +77,12 @@ def main():
                 alert_message=alert_message
             )
 
+            if alert_flag and alert_message:
+                print(alert_message)
             for alert in alerts:
                 print(alert)
 
-            print(f"Received news: {text}\n  Source: {news['source']} | Time: {news['timestamp']}\n  Sentiment: {sentiment['label']} (score: {sentiment['score']:.2f})\n  Risk Type(s): {', '.join(risk_types)}\n  Entity: {entity}\n")
+            print(f"Received news: {text}\n  Source: {source} | Time: {timestamp}\n  Sentiment: {sentiment['label']} (score: {sentiment['score']:.2f})\n  Risk Type(s): {', '.join(risk_types)}\n  Entity: {entity}\n")
 
 if __name__ == "__main__":
     main() 

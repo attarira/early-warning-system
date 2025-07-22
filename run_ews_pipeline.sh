@@ -24,22 +24,28 @@ docker compose -f docker/docker-compose.yml up -d
 sleep 10
 
 echo "Activating virtual environment..."
-source venv/bin/activate || source .venv/bin/activate
+if [ -f ".venv/bin/activate" ]; then
+    source .venv/bin/activate
+    PYTHON_BIN="$(pwd)/.venv/bin/python"
+else
+    echo "No virtual environment found!"
+    exit 1
+fi
 
 # Run producers in the background
 echo "Running newsapi producer in the background..."
-PYTHONPATH=. nohup python -m ingestion.newsapi_producer > news_producer.log 2>&1 &
+PYTHONPATH=. nohup "$PYTHON_BIN" -m ingestion.newsapi_producer > news_producer.log 2>&1 &
 NEWS_PRODUCER_PID=$!
 echo "News producer running in background (PID $NEWS_PRODUCER_PID, logs in news_producer.log)"
 
 echo "Running reddit producer in the background..."
-PYTHONPATH=. nohup python -m ingestion.reddit_producer > reddit_producer.log 2>&1 &
+PYTHONPATH=. nohup "$PYTHON_BIN" -m ingestion.reddit_producer > reddit_producer.log 2>&1 &
 REDDIT_PRODUCER_PID=$!
 echo "Reddit producer running in background (PID $REDDIT_PRODUCER_PID, logs in reddit_producer.log)"
 
 # Run the news consumer in the background
 echo "Starting news consumer (risk scoring, alerting, storage)..."
-PYTHONPATH=. nohup python -m processing.news_consumer > consumer.log 2>&1 &
+PYTHONPATH=. nohup "$PYTHON_BIN" -m processing.news_consumer > consumer.log 2>&1 &
 CONSUMER_PID=$!
 echo "News consumer running in background (PID $CONSUMER_PID, logs in consumer.log)"
 
